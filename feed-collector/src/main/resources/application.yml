@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: feed-collector
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres_kurama
+    username: user
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
