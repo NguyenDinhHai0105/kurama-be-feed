@@ -1,8 +1,10 @@
 package com.kurama.feedcollector.controller;
 
+import com.kurama.feedcollector.dto.ArticleDto;
 import com.kurama.feedcollector.dto.CommonResponseEntity;
 import com.kurama.feedcollector.dto.CreateFeedRequest;
 import com.kurama.feedcollector.entity.Feed;
+import com.kurama.feedcollector.service.ArticleService;
 import com.kurama.feedcollector.service.FeedService;
 import com.kurama.feedcollector.service.PollFeedService;
 import com.kurama.feedcollector.service.exception.DuplicateFeedException;
@@ -22,12 +24,8 @@ import java.util.UUID;
 public class FeedController {
 
     private final FeedService service;
+    private final ArticleService articleService;
     private final PollFeedService pollFeedService;
-
-    @GetMapping("/{feedId}/articles")
-    public Object getAllArticlesByFeedId(@PathVariable UUID feedId) {
-        return pollFeedService.pollFeeds(feedId);
-    }
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody CreateFeedRequest request) {
@@ -45,5 +43,17 @@ public class FeedController {
     public CommonResponseEntity<List<Feed>> getAllFeeds() {
         List<Feed> result = service.getAll();
         return new CommonResponseEntity<List<Feed>>().success(200, result, "Success");
+    }
+
+    @GetMapping("/{feedId}/articles")
+    public CommonResponseEntity<List<ArticleDto>> getArticlesByFeedId(@PathVariable UUID feedId) {
+        List<ArticleDto> articles = articleService.getArticlesByFeedId(feedId);
+        return new CommonResponseEntity<List<ArticleDto>>().success(200, articles, "Success");
+    }
+
+    @PostMapping("/check-new")
+    public CommonResponseEntity<String> checkNewArticles() {
+//        pollFeedService.checkNewArticles();
+        return new CommonResponseEntity<String>().success(200, "Triggered", "Check started");
     }
 }

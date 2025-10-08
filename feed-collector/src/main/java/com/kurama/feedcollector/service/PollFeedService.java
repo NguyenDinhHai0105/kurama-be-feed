@@ -1,6 +1,9 @@
 package com.kurama.feedcollector.service;
 
-import com.kurama.feedcollector.dto.ArticleDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kurama.feedcollector.entity.Article;
+import com.kurama.feedcollector.entity.Feed;
+import com.kurama.feedcollector.repository.ArticleRepository;
 import com.kurama.feedcollector.repository.FeedRepository;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
@@ -15,6 +18,7 @@ import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,18 +27,20 @@ import org.springframework.stereotype.Service;
 public class PollFeedService {
 
     private final FeedRepository feedRepository;
+    private final ObjectMapper mapper;
+    private final ArticleRepository articleRepository;
 
-    public Object pollFeeds(UUID feedId) {
-        // Logic to poll feeds and update entries
-        List<Object> result = new ArrayList<>();
-//        feedRepository.findAll().forEach(feed -> {
-//            result.add(fetchFeed(feed.getUrl()));
-//        });
-        result.add(fetchFeed(Objects.requireNonNull(feedRepository.findById(feedId).orElse(null)).getUrl()));
-        return result;
+    @Scheduled(fixedDelay = 1000 * 30)
+    public void pollFeeds() {
+        log.info("Polling all feeds...");
+        List<Feed> feeds = feedRepository.findAll();
+        for (Feed feed : feeds) {
+            log.info("Polling feed with id: {}", feed.getId());
+            fetchFeed(feed.getUrl());
+        }
     }
 
-    private List<ArticleDto> fetchFeed(String url) {
+    private void fetchFeed(String url) {
         try {
             HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
             connection.setRequestMethod("GET");
@@ -43,14 +49,24 @@ public class PollFeedService {
             try (var inputStream = connection.getInputStream()) {
                 SyndFeedInput input = new SyndFeedInput();
                 SyndFeed feed = input.build(new InputStreamReader(inputStream));
-                return feed.getEntries().stream()
-                        .map(entry -> new ArticleDto().convertToArticleDto(entry))
+                List<Article> result = feed.getEntries().stream()
+                        .map(entry -> Article.builder().
+                                title(entry.getTitle()).
+                                link(entry.getLink()).
+                                description(entry.getDescription() != null ? entry.getDescription().getValue() : null).
+                                author(entry.getAuthor()).
+                                publishDate(String.valueOf(entry.getPublishedDate())).
+                                guid(entry.getUri()).
+                                content(entry.getContents() != null && !entry.getContents().isEmpty() ? entry.getContents().get(0).getValue() : null).
+                                category(entry.getCategories() != null && !entry.getCategories().isEmpty() ? entry.getCategories().get(0).getName() : null).
+                                feedId(Objects.requireNonNull(feedRepository.findByUrl(url).orElse(null)).getId()).
+                                build())
                         .toList();
+                articleRepository.saveAll(result);
             }
         } catch (Exception e) {
             System.err.println("Failed to fetch or parse feed from url: " + url);
             log.error("Failed to fetch or parse feed from url: {}", url, e);
         }
-        return null;
     }
 }
