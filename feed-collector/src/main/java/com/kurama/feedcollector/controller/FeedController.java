@@ -3,6 +3,7 @@ package com.kurama.feedcollector.controller;
 import com.kurama.feedcollector.dto.ArticleDto;
 import com.kurama.feedcollector.dto.CommonResponseEntity;
 import com.kurama.feedcollector.dto.CreateFeedRequest;
+import com.kurama.feedcollector.dto.PagedResponse;
 import com.kurama.feedcollector.entity.Feed;
 import com.kurama.feedcollector.service.ArticleService;
 import com.kurama.feedcollector.service.FeedService;
@@ -46,9 +47,14 @@ public class FeedController {
     }
 
     @GetMapping("/{feedId}/articles")
-    public CommonResponseEntity<List<ArticleDto>> getArticlesByFeedId(@PathVariable UUID feedId) {
-        List<ArticleDto> articles = articleService.getArticlesByFeedId(feedId);
-        return new CommonResponseEntity<List<ArticleDto>>().success(200, articles, "Success");
+    public CommonResponseEntity<PagedResponse<ArticleDto>> getArticlesByFeedId(
+            @PathVariable UUID feedId,
+            @RequestParam(name = "page", required = false, defaultValue = "0") Integer page
+    ) {
+        int pageNumber = page != null && page >= 0 ? page : 0;
+        int size = 8; // fixed page size as requested
+        PagedResponse<ArticleDto> paged = articleService.getArticlesByFeedId(feedId, pageNumber, size);
+        return new CommonResponseEntity<PagedResponse<ArticleDto>>().success(200, paged, "Success");
     }
 
     @PostMapping("/check-new")

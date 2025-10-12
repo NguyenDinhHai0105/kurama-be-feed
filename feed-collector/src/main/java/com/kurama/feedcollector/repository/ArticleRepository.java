@@ -1,6 +1,8 @@
 package com.kurama.feedcollector.repository;
 
 import com.kurama.feedcollector.entity.Article;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -9,5 +11,9 @@ import java.util.UUID;
 
 @Repository
 public interface ArticleRepository extends JpaRepository<Article, String> {
-    List<Article> findByFeedId(UUID feedId);
+    List<Article> findByFeedIdOrderByPublishDateDesc(UUID feedId);
+    Boolean existsByGuid(String guid);
+
+    // Added pageable variant for pagination support
+    Page<Article> findByFeedIdOrderByPublishDateDesc(UUID feedId, Pageable pageable);
 }

@@ -2,6 +2,7 @@ package com.kurama.feedcollector.dto;
 
 import lombok.*;
 
+import java.util.Date;
 import java.util.UUID;
 
 @Getter
@@ -15,7 +16,7 @@ public class ArticleDto {
     private String link;
     private String description;
     private String author;
-    private String publishDate;
+    private Date publishDate;
     private String content;
     private String category;
     private UUID feedId;

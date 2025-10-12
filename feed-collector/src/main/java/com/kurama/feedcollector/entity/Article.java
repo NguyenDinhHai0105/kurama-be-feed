@@ -2,6 +2,10 @@ package com.kurama.feedcollector.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.util.Date;
 import java.util.UUID;
 
 @Entity
@@ -11,6 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(AuditingEntityListener.class)
 public class Article {
 
     @Id
@@ -20,10 +25,13 @@ public class Article {
     @Column(columnDefinition = "TEXT")
     private String description;
     private String author;
-    private String publishDate;
+    private Date publishDate;
     @Column(columnDefinition = "TEXT")
     private String content;
     private String category;
     private UUID feedId;
+
+    @CreatedDate
+    private Date createdDate;
 }
 

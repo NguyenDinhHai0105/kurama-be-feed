@@ -11,10 +11,7 @@ import com.rometools.rome.io.SyndFeedInput;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -55,18 +52,31 @@ public class PollFeedService {
                                 link(entry.getLink()).
                                 description(entry.getDescription() != null ? entry.getDescription().getValue() : null).
                                 author(entry.getAuthor()).
-                                publishDate(String.valueOf(entry.getPublishedDate())).
+                                publishDate(entry.getPublishedDate()).
                                 guid(entry.getUri()).
                                 content(entry.getContents() != null && !entry.getContents().isEmpty() ? entry.getContents().get(0).getValue() : null).
                                 category(entry.getCategories() != null && !entry.getCategories().isEmpty() ? entry.getCategories().get(0).getName() : null).
                                 feedId(Objects.requireNonNull(feedRepository.findByUrl(url).orElse(null)).getId()).
                                 build())
                         .toList();
+                checkNewArticles(result);
                 articleRepository.saveAll(result);
             }
         } catch (Exception e) {
             System.err.println("Failed to fetch or parse feed from url: " + url);
             log.error("Failed to fetch or parse feed from url: {}", url, e);
         }
+    }
+
+    public Boolean checkNewArticles(List<Article> articles) {
+        Article lastestArticle = articles.stream()
+                .max(Comparator.comparing(Article::getPublishDate))
+                .orElse(null);
+
+        String lastestArticleGuid = lastestArticle != null ? lastestArticle.getGuid() : null;
+        Boolean exist = articleRepository.existsByGuid(lastestArticleGuid);
+        log.info("Guid {} is exist : {}", lastestArticleGuid, lastestArticleGuid);
+        log.info("Lastest article exist: {}", exist);
+        return exist;
     }
 }
