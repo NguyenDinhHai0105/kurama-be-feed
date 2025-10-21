@@ -14,6 +14,9 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
     List<Article> findByFeedIdOrderByPublishDateDesc(UUID feedId);
     Boolean existsByGuid(String guid);
 
+    // Find articles by multiple GUIDs in one query
+    List<Article> findByGuidIn(List<String> guids);
+
     // Added pageable variant for pagination support
     Page<Article> findByFeedIdOrderByPublishDateDesc(UUID feedId, Pageable pageable);
 }

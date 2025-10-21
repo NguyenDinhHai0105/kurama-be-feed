@@ -12,11 +12,13 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +48,7 @@ public class PollFeedService {
             try (var inputStream = connection.getInputStream()) {
                 SyndFeedInput input = new SyndFeedInput();
                 SyndFeed feed = input.build(new InputStreamReader(inputStream));
-                List<Article> result = feed.getEntries().stream()
+                List<Article> allArticles = feed.getEntries().stream()
                         .map(entry -> Article.builder().
                                 title(entry.getTitle()).
                                 link(entry.getLink()).
@@ -59,8 +61,14 @@ public class PollFeedService {
                                 feedId(Objects.requireNonNull(feedRepository.findByUrl(url).orElse(null)).getId()).
                                 build())
                         .toList();
-                checkNewArticles(result);
-                articleRepository.saveAll(result);
+
+                List<Article> newArticles = filterNewArticles(allArticles);
+                if (!newArticles.isEmpty()) {
+                    log.info("Found {} new articles for feed: {}", newArticles.size(), url);
+                    articleRepository.saveAll(newArticles);
+                } else {
+                    log.info("No new articles found for feed: {}", url);
+                }
             }
         } catch (Exception e) {
             System.err.println("Failed to fetch or parse feed from url: " + url);
@@ -68,15 +76,30 @@ public class PollFeedService {
         }
     }
 
-    public Boolean checkNewArticles(List<Article> articles) {
-        Article lastestArticle = articles.stream()
-                .max(Comparator.comparing(Article::getPublishDate))
-                .orElse(null);
+    private List<Article> filterNewArticles(List<Article> articles) {
+        if (articles.isEmpty()) {
+            return articles;
+        }
 
-        String lastestArticleGuid = lastestArticle != null ? lastestArticle.getGuid() : null;
-        Boolean exist = articleRepository.existsByGuid(lastestArticleGuid);
-        log.info("Guid {} is exist : {}", lastestArticleGuid, lastestArticleGuid);
-        log.info("Lastest article exist: {}", exist);
-        return exist;
+        // Extract all GUIDs from the articles
+        List<String> articleGuids = articles.stream()
+                .map(Article::getGuid)
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (articleGuids.isEmpty()) {
+            return articles;
+        }
+
+        // Query database once to get all existing articles with these GUIDs
+        List<Article> existingArticles = articleRepository.findByGuidIn(articleGuids);
+        Set<String> existingGuids = existingArticles.stream()
+                .map(Article::getGuid)
+                .collect(Collectors.toSet());
+
+        // Filter in memory - only keep articles whose GUID is not in the existing set
+        return articles.stream()
+                .filter(article -> article.getGuid() != null && !existingGuids.contains(article.getGuid()))
+                .toList();
     }
 }
