@@ -1,6 +1,7 @@
 package com.kurama.feedcollector.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kurama.feedcollector.dto.ArticleDto;
 import com.kurama.feedcollector.entity.Article;
 import com.kurama.feedcollector.entity.Feed;
 import com.kurama.feedcollector.repository.ArticleRepository;
@@ -28,6 +29,8 @@ public class PollFeedService {
     private final FeedRepository feedRepository;
     private final ObjectMapper mapper;
     private final ArticleRepository articleRepository;
+    private final KafkaArticleProducerService kafkaArticleProducerService;
+    private final ArticleMapper articleMapper;
 
     @Scheduled(fixedDelay = 1000 * 30)
     public void pollFeeds() {
@@ -66,6 +69,14 @@ public class PollFeedService {
                 if (!newArticles.isEmpty()) {
                     log.info("Found {} new articles for feed: {}", newArticles.size(), url);
                     articleRepository.saveAll(newArticles);
+                    // Send new articles to Kafka
+                    try {
+                        List<ArticleDto> articleDtos = articleMapper.toDtoList(newArticles);
+                        kafkaArticleProducerService.sendNewArticles(articleDtos);
+                        log.info("Successfully sent {} new articles to Kafka topic", newArticles.size());
+                    } catch (Exception kafkaException) {
+                        log.error("Failed to send articles to Kafka, but articles were saved to database", kafkaException);
+                    }
                 } else {
                     log.info("No new articles found for feed: {}", url);
                 }
